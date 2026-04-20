@@ -58,9 +58,9 @@ if prompt := st.chat_input("Input technical query bruv..."):
     with chat_placeholder:
         with st.chat_message("assistant"):
             try:
-                # Using 1.5-Flash-8B for max speed and high quota limits
+                # 2026 Stable naming convention for the Flash model
                 response = client.models.generate_content(
-                    model="gemini-1.5-flash-8b", 
+                    model="gemini-1.5-flash", # Using the main stable branch
                     contents=prompt,
                     config={'system_instruction': system_behavior}
                 )
@@ -69,10 +69,13 @@ if prompt := st.chat_input("Input technical query bruv..."):
                     st.markdown(response.text)
                     st.session_state.messages.append({"role": "model", "content": response.text})
                 else:
-                    st.error("Empty response from AI. Try again.")
+                    st.warning("AI is thinking hard... try again in a sec.")
             
             except Exception as e:
-                if "429" in str(e):
-                    st.error("🚦 Quota Full! Google is gatekeeping. Wait 60s.")
+                # Catching the 404 specifically to give you a hint
+                if "404" in str(e):
+                    st.error("🚦 API Route Error: Model not found. Check if the model name is correct for 2026.")
+                elif "429" in str(e):
+                    st.error("🚦 Quota Full! Wait 60s.")
                 else:
                     st.error(f"Bruv, API caught an L: {e}")
