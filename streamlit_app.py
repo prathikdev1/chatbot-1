@@ -1,11 +1,12 @@
 import streamlit as st
 import google.generativeai as genai
 
-# 1. API CONFIG (2026 STABLE)
+# 1. API CONFIG (Cloud-First Logic)
 try:
+    # This looks for the "Secrets" you saved in Streamlit
     API_KEY = st.secrets["GEMINI_KEY"]
 except:
-    # Use your key for local testing
+    # Fallback for your local laptop
     API_KEY = "AIzaSyCULxx2WqT9fUsT7hyLHt1bWWua1j3FiNA"
 
 genai.configure(api_key=API_KEY)
@@ -22,10 +23,10 @@ system_behavior = (
     "provide a high-speed, bulleted technical summary of the response."
 )
 
-# 3. SMART INITIALIZE (2026 PREVIEW TAGS)
+# 3. SMART INITIALIZE (2026 Stable Loop)
 @st.cache_resource
 def load_god_model():
-    # Attempt to load the 2026 GOAT
+    # Try 3.1 Preview first, then 1.5 Flash as a rock-solid backup
     models_to_try = ["gemini-3.1-flash-lite-preview", "gemini-1.5-flash"]
     for m_name in models_to_try:
         try:
@@ -33,7 +34,7 @@ def load_god_model():
                 model_name=m_name, 
                 system_instruction=system_behavior
             )
-            # Test call to verify model exists
+            # Health check ping
             model.generate_content("ping")
             return model, m_name
         except:
@@ -44,15 +45,16 @@ model, model_name = load_god_model()
 
 # 4. UI SETUP
 st.set_page_config(page_title="Lab Sentinel", page_icon="🤖", layout="centered")
-
-# Visual Polish
 st.markdown("<style>.stApp { background-color: #0e1117; color: #ffffff; }</style>", unsafe_allow_html=True)
 
 st.title("🤖 Lab Sentinel Gateway")
 st.caption("REVA University Mechatronics Lab Intelligence v1.0")
 
 # Sidebar
-st.sidebar.success(f"Model: {model_name}")
+if model_name == "Error":
+    st.sidebar.error("Model: Offline")
+else:
+    st.sidebar.success(f"Model: {model_name}")
 st.sidebar.info("Persona: Techie Bouncer Mode")
 
 # Initialize Chat State
@@ -60,7 +62,7 @@ if "messages" not in st.session_state:
     st.session_state.messages = [{"role": "assistant", "content": "Yo! Lab Sentinel God is online. What's the move today? 🏎️💨"}]
 
 if st.sidebar.button("🗑️ Clear Chat"):
-    st.session_state.messages = [{"role": "assistant", "content": "Chat cleared. What's the next mission?"}]
+    st.session_state.messages = [{"role": "assistant", "content": "History cleared. New mission starting."}]
     st.rerun()
 
 # 5. DISPLAY CHAT
@@ -70,7 +72,7 @@ with chat_placeholder:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-# 6. THE PROMPT BOX
+# 6. THE PROMPT BOX (Bottom Locked)
 if prompt := st.chat_input("Input technical query bruv..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with chat_placeholder:
@@ -90,4 +92,4 @@ if prompt := st.chat_input("Input technical query bruv..."):
                     else:
                         st.error(f"Bruv, API caught an L: {e}")
             else:
-                st.error("Fatal: No compatible models found. Check API key or Library version.")
+                st.error("Fatal: API Key missing or Model offline. Check Streamlit Secrets.")
