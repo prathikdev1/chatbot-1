@@ -4,13 +4,13 @@ from google import genai
 # 1. API CONFIG (Stable v1)
 try:
     API_KEY = st.secrets["GEMINI_KEY"].strip()
+    # Initializing with the stable 2026 route
     client = genai.Client(api_key=API_KEY, http_options={'api_version': 'v1'})
 except Exception as e:
     st.error("🔒 Security Block: API Key not found. Check Secrets.")
     st.stop()
 
-# 2. SYSTEM DNA (Persona Injection)
-# Since the system_instruction field is buggy, we'll prefix this to every user message.
+# 2. SYSTEM DNA
 sentinel_dna = (
     "SYSTEM INSTRUCTION: You are the 'Lab Sentinel God', a high-energy Gen Z Mechatronics Engineer. "
     "Use techie slang (bruv, W, mid, cooked, absolute heat). Only answer technical lab questions. "
@@ -21,9 +21,7 @@ sentinel_dna = (
 # 3. UI SETUP
 st.set_page_config(page_title="Lab Sentinel", page_icon="🤖")
 st.title("🤖 Lab Sentinel Gateway")
-st.caption("REVA University Mechatronics Lab Intelligence v1.0")
 
-# Initialize Chat State
 if "messages" not in st.session_state:
     st.session_state.messages = [{"role": "model", "content": "Yo! Lab Sentinel God is online. What's the move today? 🏎️💨"}]
 
@@ -35,9 +33,8 @@ with chat_placeholder:
         with st.chat_message(st_role):
             st.markdown(message["content"])
 
-# 5. THE CHAT ENGINE (Payload Fix)
+# 5. THE CHAT ENGINE (Full Path Fix)
 if prompt := st.chat_input("Input technical query bruv..."):
-    # Display the clean prompt to the user
     st.session_state.messages.append({"role": "user", "content": prompt})
     with chat_placeholder:
         with st.chat_message("user"):
@@ -45,19 +42,27 @@ if prompt := st.chat_input("Input technical query bruv..."):
 
     with chat_placeholder:
         with st.chat_message("assistant"):
-            try:
-                # We inject the Sentinel DNA directly into the contents string
-                # This bypasses the buggy config.system_instruction field
-                response = client.models.generate_content(
-                    model="gemini-1.5-flash", 
-                    contents=f"{sentinel_dna}{prompt}"
-                )
-                
-                if response.text:
-                    st.markdown(response.text)
-                    st.session_state.messages.append({"role": "model", "content": response.text})
-                else:
-                    st.warning("AI is ghosting... try again.")
+            # We use the FULL paths here. v1 is very picky about the 'models/' prefix.
+            model_options = ["models/gemini-2.0-flash", "models/gemini-1.5-flash"]
+            success = False
             
-            except Exception as e:
-                st.error(f"Bruv, API caught an L: {e}")
+            for m_path in model_options:
+                try:
+                    response = client.models.generate_content(
+                        model=m_path, 
+                        contents=f"{sentinel_dna}{prompt}"
+                    )
+                    if response.text:
+                        st.markdown(response.text)
+                        st.session_state.messages.append({"role": "model", "content": response.text})
+                        success = True
+                        break
+                except Exception as e:
+                    if "404" in str(e):
+                        continue
+                    else:
+                        st.error(f"Bruv, API caught an L: {e}")
+                        break
+            
+            if not success:
+                st.error("🚦 404 Mega-L: Google literally cannot find any models. Check AI Studio project status.")
