@@ -48,35 +48,37 @@ with chat_placeholder:
         with st.chat_message(st_role):
             st.markdown(message["content"])
 
-# 5. THE CHAT ENGINE
+# 5. THE CHAT ENGINE (The Loop of Life)
 if prompt := st.chat_input("Input technical query bruv..."):
-    # Add user message
     st.session_state.messages.append({"role": "user", "content": prompt})
     with chat_placeholder:
         with st.chat_message("user"):
             st.markdown(prompt)
 
-    # Generate Response
     with chat_placeholder:
         with st.chat_message("assistant"):
-            try:
-                # Targeted the 3.1 Flash Lite Preview for that sweet 500 RPD quota
-                response = client.models.generate_content(
-                    model="gemini-3.1-flash-lite-preview", 
-                    contents=prompt,
-                    config={'system_instruction': system_behavior}
-                )
-                
-                if response.text:
-                    st.markdown(response.text)
-                    st.session_state.messages.append({"role": "model", "content": response.text})
-                else:
-                    st.warning("AI is buffering... try again.")
+            # We try the high-quota 3.1 first, then the stable 2.0/1.5
+            potential_models = ["gemini-3.1-flash", "gemini-1.5-flash"]
+            response_received = False
             
-            except Exception as e:
-                if "429" in str(e):
-                    st.error("🚦 Quota Full! Wait 60s for a reset.")
-                elif "404" in str(e):
-                    st.error("🚦 Model mismatch. Try redeploying the app.")
-                else:
-                    st.error(f"Bruv, API caught an L: {e}")
+            for m_name in potential_models:
+                try:
+                    response = client.models.generate_content(
+                        model=m_name, 
+                        contents=prompt,
+                        config={'system_instruction': system_behavior}
+                    )
+                    if response.text:
+                        st.markdown(response.text)
+                        st.session_state.messages.append({"role": "model", "content": response.text})
+                        response_received = True
+                        break # Exit the loop once we get a W
+                except Exception as e:
+                    if "404" in str(e):
+                        continue # Try the next model in the list
+                    else:
+                        st.error(f"Bruv, API caught an L: {e}")
+                        break
+            
+            if not response_received:
+                st.error("🚦 Total Blackout: No models found. Check API Version.")
