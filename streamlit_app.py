@@ -1,13 +1,13 @@
 import streamlit as st
 from google import genai
 
-# 1. CLOUD CONFIG (Zero-Leak Logic)
+# 1. API CONFIG (Zero-Leak)
 try:
-    # Pulling from the Secret vault we set up
+    # Pulling from Streamlit Secrets - ensures your key stays private
     API_KEY = st.secrets["GEMINI_KEY"].strip()
     client = genai.Client(api_key=API_KEY)
 except Exception as e:
-    st.error("🔒 Security Block: API Key not found. Please setup Streamlit Secrets.")
+    st.error("🔒 Security Block: API Key not found. Check Streamlit Secrets.")
     st.stop()
 
 # 2. SYSTEM DNA (The Techie Bouncer)
@@ -15,10 +15,10 @@ system_behavior = (
     "You are the 'Lab Sentinel God'—a high-energy Gen Z Mechatronics Engineer. "
     "TONE: Use techie slang (bruv, W, mid, cooked, absolute heat) but stay elite and professional. "
     "GREETINGS: If a user says 'hi', 'hello', 'whatup', or 'yo', greet them back with techie vibes. "
-    "DOMAIN LOCK: You ONLY answer questions about 3D printing, CNC, electronics (ESP32/Arduino), and lab safety. "
-    "REJECTIONS: If they ask non-domain questions (flirting, life advice, 'what up baby'), "
+    "DOMAIN LOCK: You ONLY answer technical questions about 3D printing, CNC, electronics (ESP32/Arduino), and lab safety. "
+    "REJECTIONS: If they ask non-domain questions (rizz, life advice, 'what up baby'), "
     "say: 'Bruv, that's an invalid question. Stick to the hardware.' "
-    "SUMMARIZATION: If the user asks to summarize, provide a high-speed, bulleted technical brief."
+    "SUMMARIZATION: If requested, provide a high-speed, bulleted technical brief."
 )
 
 # 3. UI SETUP
@@ -33,6 +33,8 @@ if "messages" not in st.session_state:
     st.session_state.messages = [{"role": "model", "content": "Yo! Lab Sentinel God is online. What's the move today? 🏎️💨"}]
 
 # Sidebar
+st.sidebar.success("Model: Gemini 3.1 Flash Lite")
+st.sidebar.info("Quota: 500 Requests/Day")
 if st.sidebar.button("🗑️ Clear Chat"):
     st.session_state.messages = [{"role": "model", "content": "History cleared. New mission starting."}]
     st.rerun()
@@ -41,7 +43,7 @@ if st.sidebar.button("🗑️ Clear Chat"):
 chat_placeholder = st.container()
 with chat_placeholder:
     for message in st.session_state.messages:
-        # Mapping roles for Streamlit UI
+        # Mapping roles for Streamlit UI (user/assistant)
         st_role = "assistant" if message["role"] == "model" else "user"
         with st.chat_message(st_role):
             st.markdown(message["content"])
@@ -58,9 +60,9 @@ if prompt := st.chat_input("Input technical query bruv..."):
     with chat_placeholder:
         with st.chat_message("assistant"):
             try:
-                # 2026 Stable naming convention for the Flash model
+                # Targeted the 3.1 Flash Lite Preview for that sweet 500 RPD quota
                 response = client.models.generate_content(
-                    model="gemini-1.5-flash", # Using the main stable branch
+                    model="gemini-3.1-flash-lite-preview", 
                     contents=prompt,
                     config={'system_instruction': system_behavior}
                 )
@@ -69,13 +71,12 @@ if prompt := st.chat_input("Input technical query bruv..."):
                     st.markdown(response.text)
                     st.session_state.messages.append({"role": "model", "content": response.text})
                 else:
-                    st.warning("AI is thinking hard... try again in a sec.")
+                    st.warning("AI is buffering... try again.")
             
             except Exception as e:
-                # Catching the 404 specifically to give you a hint
-                if "404" in str(e):
-                    st.error("🚦 API Route Error: Model not found. Check if the model name is correct for 2026.")
-                elif "429" in str(e):
-                    st.error("🚦 Quota Full! Wait 60s.")
+                if "429" in str(e):
+                    st.error("🚦 Quota Full! Wait 60s for a reset.")
+                elif "404" in str(e):
+                    st.error("🚦 Model mismatch. Try redeploying the app.")
                 else:
                     st.error(f"Bruv, API caught an L: {e}")
