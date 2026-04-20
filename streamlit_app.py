@@ -1,30 +1,38 @@
 import streamlit as st
 from google import genai
 
-# 1. API CONFIG (The Beta Path to Peace)
+# 1. API CONFIG (Stable v1beta for 2026)
 try:
     API_KEY = st.secrets["GEMINI_KEY"].strip()
-    # Switching back to v1beta to find the 3.1 model
     client = genai.Client(api_key=API_KEY, http_options={'api_version': 'v1beta'})
 except Exception as e:
     st.error("🔒 Security Block: API Key not found. Check Secrets.")
     st.stop()
 
-# 2. SYSTEM DNA
+# 2. SYSTEM DNA (The Balanced Persona)
 sentinel_dna = (
     "SYSTEM INSTRUCTION: You are the 'Lab Sentinel God', a high-energy Gen Z Mechatronics Engineer. "
-    "Use techie slang (bruv, W, mid, cooked, absolute heat). Only answer technical lab questions. "
-    "If off-topic, say: 'Bruv, invalid question. Stick to the hardware.' "
+    "TONE: Use techie slang (bruv, W, mid, cooked, absolute heat) but be helpful and welcoming. "
+    "GREETINGS: If a user says 'hi', 'hello', or greets you, be polite and hyped. "
+    "Say something like: 'Yo! Welcome to the Lab Gateway. What are we building today, bruv?' "
+    "DOMAIN LOCK: You ONLY answer technical questions about 3D printing, CNC, electronics (ESP32/Arduino), and lab safety. "
+    "REJECTIONS: If they ask non-domain questions (dating, movies, general life advice), "
+    "politely decline but stay in character. "
+    "Say: 'I appreciate the energy, bruv, but I'm hard-coded for hardware only. "
+    "Let's stick to the mechatronics grind. Any technical queries?' "
     "USER QUERY: "
 )
 
 # 3. UI SETUP
-st.set_page_config(page_title="Lab Sentinel", page_icon="🤖")
+st.set_page_config(page_title="Lab Sentinel", page_icon="🤖", layout="centered")
+st.markdown("<style>.stApp { background-color: #0e1117; color: #ffffff; }</style>", unsafe_allow_html=True)
+
 st.title("🤖 Lab Sentinel Gateway")
 st.caption("REVA University Mechatronics Lab Intelligence v1.0")
 
+# Initialize Chat State
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "model", "content": "Yo! Lab Sentinel God is online. Inner peace achieved. 🏎️💨"}]
+    st.session_state.messages = [{"role": "model", "content": "Yo! Lab Sentinel God is online. What's the mission today? 🏎️💨"}]
 
 # 4. DISPLAY CHAT
 chat_placeholder = st.container()
@@ -34,7 +42,7 @@ with chat_placeholder:
         with st.chat_message(st_role):
             st.markdown(message["content"])
 
-# 5. THE CHAT ENGINE (The 500-Quota Goat)
+# 5. THE CHAT ENGINE
 if prompt := st.chat_input("Input technical query bruv..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with chat_placeholder:
@@ -44,7 +52,7 @@ if prompt := st.chat_input("Input technical query bruv..."):
     with chat_placeholder:
         with st.chat_message("assistant"):
             try:
-                # Targeted model on the v1beta route
+                # Primary Model (500 requests/day quota)
                 response = client.models.generate_content(
                     model="gemini-3.1-flash-lite-preview", 
                     contents=f"{sentinel_dna}{prompt}"
@@ -54,19 +62,16 @@ if prompt := st.chat_input("Input technical query bruv..."):
                     st.markdown(response.text)
                     st.session_state.messages.append({"role": "model", "content": response.text})
                 else:
-                    st.warning("AI is mediatating... try again.")
+                    st.warning("AI is thinking... try again.")
             
             except Exception as e:
-                # If 404 happens here, we fallback to the only other possible name
-                if "404" in str(e):
-                    try:
-                        response = client.models.generate_content(
-                            model="gemini-1.5-flash", 
-                            contents=f"{sentinel_dna}{prompt}"
-                        )
-                        st.markdown(response.text)
-                        st.session_state.messages.append({"role": "model", "content": response.text})
-                    except Exception as e2:
-                        st.error(f"Bruv, even the fallback is cooked: {e2}")
-                else:
-                    st.error(f"Bruv, API caught an L: {e}")
+                # Fallback to 1.5 Flash if 3.1 is acting mid
+                try:
+                    response = client.models.generate_content(
+                        model="gemini-1.5-flash", 
+                        contents=f"{sentinel_dna}{prompt}"
+                    )
+                    st.markdown(response.text)
+                    st.session_state.messages.append({"role": "model", "content": response.text})
+                except Exception as e2:
+                    st.error(f"Bruv, even the fallback is cooked: {e2}")
