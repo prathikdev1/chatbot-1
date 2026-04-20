@@ -1,56 +1,93 @@
 import streamlit as st
-from openai import OpenAI
+import google.generativeai as genai
 
-# Show title and description.
-st.title("💬 Chatbot")
-st.write(
-    "This is a simple chatbot that uses OpenAI's GPT-3.5 model to generate responses. "
-    "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
-    "You can also learn how to build this app step by step by [following our tutorial](https://docs.streamlit.io/develop/tutorials/llms/build-conversational-apps)."
+# 1. API CONFIG (2026 STABLE)
+try:
+    API_KEY = st.secrets["GEMINI_KEY"]
+except:
+    # Use your key for local testing
+    API_KEY = "AIzaSyCULxx2WqT9fUsT7hyLHt1bWWua1j3FiNA"
+
+genai.configure(api_key=API_KEY)
+
+# 2. SYSTEM DNA (The Techie Bouncer)
+system_behavior = (
+    "You are the 'Lab Sentinel God'—a high-energy Gen Z Mechatronics Engineer. "
+    "TONE: Use techie slang (bruv, W, mid, cooked, absolute heat) but stay elite and professional. "
+    "GREETINGS: If a user says 'hi', 'hello', 'whatup', or 'yo', greet them back with techie vibes like 'Yo! What's the move in the lab today?' "
+    "DOMAIN LOCK: You ONLY answer questions about 3D printing, CNC, electronics (ESP32/Arduino), and lab safety. "
+    "REJECTIONS: If they ask non-domain questions (flirting, life advice, 'what up baby', movies), "
+    "you MUST politely decline but stay in character. Say: 'Bruv, that's an invalid question. We're here to build, not yap about that. Stick to the hardware.' "
+    "SUMMARIZATION: If the user includes 'summarize' or 'TL;DR' in their prompt, "
+    "provide a high-speed, bulleted technical summary of the response."
 )
 
-# Ask user for their OpenAI API key via `st.text_input`.
-# Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
-# via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
-openai_api_key = st.text_input("OpenAI API Key", type="password")
-if not openai_api_key:
-    st.info("Please add your OpenAI API key to continue.", icon="🗝️")
-else:
+# 3. SMART INITIALIZE (2026 PREVIEW TAGS)
+@st.cache_resource
+def load_god_model():
+    # Attempt to load the 2026 GOAT
+    models_to_try = ["gemini-3.1-flash-lite-preview", "gemini-1.5-flash"]
+    for m_name in models_to_try:
+        try:
+            model = genai.GenerativeModel(
+                model_name=m_name, 
+                system_instruction=system_behavior
+            )
+            # Test call to verify model exists
+            model.generate_content("ping")
+            return model, m_name
+        except:
+            continue
+    return None, "Error"
 
-    # Create an OpenAI client.
-    client = OpenAI(api_key=openai_api_key)
+model, model_name = load_god_model()
 
-    # Create a session state variable to store the chat messages. This ensures that the
-    # messages persist across reruns.
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
+# 4. UI SETUP
+st.set_page_config(page_title="Lab Sentinel", page_icon="🤖", layout="centered")
 
-    # Display the existing chat messages via `st.chat_message`.
+# Visual Polish
+st.markdown("<style>.stApp { background-color: #0e1117; color: #ffffff; }</style>", unsafe_allow_html=True)
+
+st.title("🤖 Lab Sentinel Gateway")
+st.caption("REVA University Mechatronics Lab Intelligence v1.0")
+
+# Sidebar
+st.sidebar.success(f"Model: {model_name}")
+st.sidebar.info("Persona: Techie Bouncer Mode")
+
+# Initialize Chat State
+if "messages" not in st.session_state:
+    st.session_state.messages = [{"role": "assistant", "content": "Yo! Lab Sentinel God is online. What's the move today? 🏎️💨"}]
+
+if st.sidebar.button("🗑️ Clear Chat"):
+    st.session_state.messages = [{"role": "assistant", "content": "Chat cleared. What's the next mission?"}]
+    st.rerun()
+
+# 5. DISPLAY CHAT
+chat_placeholder = st.container()
+with chat_placeholder:
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-    # Create a chat input field to allow the user to enter a message. This will display
-    # automatically at the bottom of the page.
-    if prompt := st.chat_input("What is up?"):
-
-        # Store and display the current prompt.
-        st.session_state.messages.append({"role": "user", "content": prompt})
+# 6. THE PROMPT BOX
+if prompt := st.chat_input("Input technical query bruv..."):
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with chat_placeholder:
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        # Generate a response using the OpenAI API.
-        stream = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ],
-            stream=True,
-        )
-
-        # Stream the response to the chat using `st.write_stream`, then store it in 
-        # session state.
+    with chat_placeholder:
         with st.chat_message("assistant"):
-            response = st.write_stream(stream)
-        st.session_state.messages.append({"role": "assistant", "content": response})
+            if model and model_name != "Error":
+                try:
+                    response = model.generate_content(prompt)
+                    st.markdown(response.text)
+                    st.session_state.messages.append({"role": "assistant", "content": response.text})
+                except Exception as e:
+                    if "429" in str(e):
+                        st.error("🚦 Quota Full! The God is resting. Wait 60s.")
+                    else:
+                        st.error(f"Bruv, API caught an L: {e}")
+            else:
+                st.error("Fatal: No compatible models found. Check API key or Library version.")
