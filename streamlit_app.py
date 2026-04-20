@@ -4,7 +4,7 @@ from google import genai
 # 1. API CONFIG (Stable v1)
 try:
     API_KEY = st.secrets["GEMINI_KEY"].strip()
-    # Initializing with the stable 2026 route
+    # Forcing v1 to keep it stable
     client = genai.Client(api_key=API_KEY, http_options={'api_version': 'v1'})
 except Exception as e:
     st.error("🔒 Security Block: API Key not found. Check Secrets.")
@@ -21,6 +21,7 @@ sentinel_dna = (
 # 3. UI SETUP
 st.set_page_config(page_title="Lab Sentinel", page_icon="🤖")
 st.title("🤖 Lab Sentinel Gateway")
+st.caption("REVA University Mechatronics Lab Intelligence v1.0")
 
 if "messages" not in st.session_state:
     st.session_state.messages = [{"role": "model", "content": "Yo! Lab Sentinel God is online. What's the move today? 🏎️💨"}]
@@ -33,7 +34,7 @@ with chat_placeholder:
         with st.chat_message(st_role):
             st.markdown(message["content"])
 
-# 5. THE CHAT ENGINE (Full Path Fix)
+# 5. THE CHAT ENGINE (Targeting the 500-Quota Model)
 if prompt := st.chat_input("Input technical query bruv..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with chat_placeholder:
@@ -42,27 +43,23 @@ if prompt := st.chat_input("Input technical query bruv..."):
 
     with chat_placeholder:
         with st.chat_message("assistant"):
-            # We use the FULL paths here. v1 is very picky about the 'models/' prefix.
-            model_options = ["models/gemini-2.0-flash", "models/gemini-1.5-flash"]
-            success = False
+            try:
+                # Target the EXACT model ID from your AI Studio 'Rate Limit' page
+                # This is the one where you have 500 requests available!
+                response = client.models.generate_content(
+                    model="gemini-3.1-flash-lite-preview", 
+                    contents=f"{sentinel_dna}{prompt}"
+                )
+                
+                if response.text:
+                    st.markdown(response.text)
+                    st.session_state.messages.append({"role": "model", "content": response.text})
+                else:
+                    st.warning("AI is ghosting... try again.")
             
-            for m_path in model_options:
-                try:
-                    response = client.models.generate_content(
-                        model=m_path, 
-                        contents=f"{sentinel_dna}{prompt}"
-                    )
-                    if response.text:
-                        st.markdown(response.text)
-                        st.session_state.messages.append({"role": "model", "content": response.text})
-                        success = True
-                        break
-                except Exception as e:
-                    if "404" in str(e):
-                        continue
-                    else:
-                        st.error(f"Bruv, API caught an L: {e}")
-                        break
-            
-            if not success:
-                st.error("🚦 404 Mega-L: Google literally cannot find any models. Check AI Studio project status.")
+            except Exception as e:
+                # Catching the 429 specifically
+                if "429" in str(e):
+                    st.error("🚦 Quota Exhausted! Check AI Studio. You might need to wait 60s.")
+                else:
+                    st.error(f"Bruv, API caught an L: {e}")
