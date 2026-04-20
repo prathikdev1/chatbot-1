@@ -1,15 +1,14 @@
 import streamlit as st
 import google.generativeai as genai
 
-# 1. API CONFIG (Cloud-First Logic)
+# 1. API CONFIG (Zero-Leak Logic)
+# We ONLY pull from Secrets now. If it's not there, we don't boot.
 try:
-    # This looks for the "Secrets" you saved in Streamlit
     API_KEY = st.secrets["GEMINI_KEY"]
-except:
-    # Fallback for your local laptop
-    API_KEY = "AIzaSyCULxx2WqT9fUsT7hyLHt1bWWua1j3FiNA"
-
-genai.configure(api_key=API_KEY)
+    genai.configure(api_key=API_KEY)
+except Exception as e:
+    st.error("🔒 Security Block: API Key not found in Secrets. Setup required.")
+    st.stop() # Stops the app from running further
 
 # 2. SYSTEM DNA (The Techie Bouncer)
 system_behavior = (
@@ -23,18 +22,18 @@ system_behavior = (
     "provide a high-speed, bulleted technical summary of the response."
 )
 
-# 3. SMART INITIALIZE (2026 Stable Loop)
+# 3. SMART INITIALIZE
 @st.cache_resource
 def load_god_model():
-    # Try 3.1 Preview first, then 1.5 Flash as a rock-solid backup
-    models_to_try = ["gemini-3.1-flash-lite-preview", "gemini-1.5-flash"]
+    # Attempting the 2026 Stable Lineup
+    models_to_try = ["gemini-1.5-flash", "gemini-3.1-flash-lite-preview"]
     for m_name in models_to_try:
         try:
             model = genai.GenerativeModel(
                 model_name=m_name, 
                 system_instruction=system_behavior
             )
-            # Health check ping
+            # Testing connectivity
             model.generate_content("ping")
             return model, m_name
         except:
@@ -55,14 +54,13 @@ if model_name == "Error":
     st.sidebar.error("Model: Offline")
 else:
     st.sidebar.success(f"Model: {model_name}")
-st.sidebar.info("Persona: Techie Bouncer Mode")
 
-# Initialize Chat State
+# Initialize Chat
 if "messages" not in st.session_state:
     st.session_state.messages = [{"role": "assistant", "content": "Yo! Lab Sentinel God is online. What's the move today? 🏎️💨"}]
 
 if st.sidebar.button("🗑️ Clear Chat"):
-    st.session_state.messages = [{"role": "assistant", "content": "History cleared. New mission starting."}]
+    st.session_state.messages = [{"role": "assistant", "content": "Chat cleared. What's the next mission?"}]
     st.rerun()
 
 # 5. DISPLAY CHAT
@@ -72,7 +70,7 @@ with chat_placeholder:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
-# 6. THE PROMPT BOX (Bottom Locked)
+# 6. THE PROMPT BOX
 if prompt := st.chat_input("Input technical query bruv..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with chat_placeholder:
@@ -88,8 +86,8 @@ if prompt := st.chat_input("Input technical query bruv..."):
                     st.session_state.messages.append({"role": "assistant", "content": response.text})
                 except Exception as e:
                     if "429" in str(e):
-                        st.error("🚦 Quota Full! The God is resting. Wait 60s.")
+                        st.error("🚦 Quota Full! Wait 60s.")
                     else:
                         st.error(f"Bruv, API caught an L: {e}")
             else:
-                st.error("Fatal: API Key missing or Model offline. Check Streamlit Secrets.")
+                st.error("Fatal: Model offline. Check Secrets.")
